@@ -132,7 +132,7 @@
                                 "path": "/Incidents/subscriptions/@{encodeURIComponent(triggerBody()?['WorkspaceSubscriptionId'])}/resourceGroups/@{encodeURIComponent(triggerBody()?['WorkspaceResourceGroup'])}/workspaces/@{encodeURIComponent(triggerBody()?['WorkspaceId'])}/alerts/@{encodeURIComponent(triggerBody()?['SystemAlertId'])}"
                             },
                             "runAfter": {
-                                "Initialize_apiToken": [
+                                "Initialize_service": [
                                     "Succeeded"
                                 ]
                             },
