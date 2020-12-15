@@ -3,7 +3,7 @@
     "contentVersion": "1.0.0.0",
     "parameters": {
         "logicAppName": {
-            "defaultValue": "New-SnowIncidentFromSentinel",
+            "defaultValue": "New-PagerDutyIncident",
             "type": "String",
             "metadata": {
                 "description": "Name of the logic app."
