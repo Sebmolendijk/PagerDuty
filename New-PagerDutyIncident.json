@@ -73,113 +73,143 @@
                         }
                     },
                     "actions": {
-                        "Initialize_caller": {
-                            "description": "Caller for incidents creation",
-                            "inputs": {
-                                "variables": [
-                                    {
-                                        "name": "caller",
-                                        "type": "string",
-                                        "value": "user@domain.com"
-                                    }
-                                ]
-                            },
-                            "runAfter": {},
-                            "type": "InitializeVariable"
-                        },
-                        "Initialize_apiToken": {
-                            "inputs": {
-                                "variables": [
-                                    {
-                                        "name": "apiToken",
-                                        "type": "string",
-                                        "value": "Token token=pagerDutyToken"
-                                    }
-                                ]
-                            },
-                            "runAfter": {
-                                "Initialize_caller": [
-                                    "Succeeded"
-                                ]
-                            },
-                            "type": "InitializeVariable"
-                        },
-                        "Initialize_service": {
-                            "inputs": {
-                                "variables": [
-                                    {
-                                        "name": "service",
-                                        "type": "string",
-                                        "value": "your_service_id"
-                                    }
-                                ]
-                            },
-                            "runAfter": {
-                                "Initialize_apiToken": [
-                                    "Succeeded"
-                                ]
-                            },
-                            "type": "InitializeVariable"
-                        },
-                        "Alert_-_Get_incident": {
-                            "inputs": {
-                                "host": {
-                                    "connection": {
-                                        "name": "@parameters('$connections')['azuresentinel']['connectionId']"
-                                    }
-                                },
-                                "method": "get",
-                                "path": "/Incidents/subscriptions/@{encodeURIComponent(triggerBody()?['WorkspaceSubscriptionId'])}/resourceGroups/@{encodeURIComponent(triggerBody()?['WorkspaceResourceGroup'])}/workspaces/@{encodeURIComponent(triggerBody()?['WorkspaceId'])}/alerts/@{encodeURIComponent(triggerBody()?['SystemAlertId'])}"
-                            },
-                            "runAfter": {
-                                "Initialize_service": [
-                                    "Succeeded"
-                                ]
-                            },
-                            "type": "ApiConnection"
-                        },
-                        "Compose_incident_body": {
-                            "inputs": "<b>Description</b>: @{body('Alert_-_Get_incident')?['properties']?['description']}\n<br>\n<b>Sentinel Incident URL</b>:<a href=@{body('Alert_-_Get_incident')?['properties']?['incidentUrl']} target=\"_blank\">Link</a>",
-                            "runAfter": {
-                                "Alert_-_Get_incident": [
-                                    "Succeeded"
-                                ]
-                            },
-                            "type": "Compose"
-                        },
-                        "Create_PagerDuty_incident": {
-                            "inputs": {
-                                "body": {
-                                    "incident": {
-                                        "body": {
-                                            "details": "@outputs('Compose_incident_body')",
-                                            "type": "incident_body"
-                                        },
-                                        "service": {
-                                            "id": "@variables('service')",
-                                            "type": "service_reference"
-                                        },
-                                        "title": "@body('Alert_-_Get_incident')?['properties']?['title']",
-                                        "type": "incident",
-                                        "urgency": "high"
-                                    }
-                                },
-                                "headers": {
-                                    "Accept": "application/vnd.pagerduty+json;version=2",
-                                    "Authorization": "@variables('apiToken')",
-                                    "Content-Type": "application/json",
-                                    "From": "@variables('caller')"
-                                },
-                                "method": "POST",
-                                "uri": "https://api.pagerduty.com/incidents"
-                            },
-                            "runAfter": {
-                                "Compose_incident_body": [
-                                    "Succeeded"
-                                ]
-                            },
-                            "type": "Http"
+                        "Add_comment_to_incident_(V3)": {
+                "inputs": {
+                    "body": {
+                        "incidentArmId": "@body('Alert_-_Get_incident')?['id']",
+                        "message": "<a href=\"@{body('Create_PagerDuty_incident')?['incident']?['html_url']}\" target=_blank>PagerDuty Incident link</a>"
+                    },
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['azuresentinel']['connectionId']"
                         }
+                    },
+                    "method": "post",
+                    "path": "/Incidents/Comment"
+                },
+                "runAfter": {
+                    "Create_PagerDuty_incident": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "ApiConnection"
+            },
+            "Alert_-_Get_incident": {
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                        }
+                    },
+                    "method": "get",
+                    "path": "/Incidents/subscriptions/@{encodeURIComponent(triggerBody()?['WorkspaceSubscriptionId'])}/resourceGroups/@{encodeURIComponent(triggerBody()?['WorkspaceResourceGroup'])}/workspaces/@{encodeURIComponent(triggerBody()?['WorkspaceId'])}/alerts/@{encodeURIComponent(triggerBody()?['SystemAlertId'])}"
+                },
+                "runAfter": {
+                    "Initialize_service": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "ApiConnection"
+            },
+            "Compose": {
+                "inputs": "@body('Add_comment_to_incident_(V3)')?['incident']?['html_url']",
+                "runAfter": {
+                    "Add_comment_to_incident_(V3)": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Compose"
+            },
+            "Compose_incident_body": {
+                "inputs": "Description: @{body('Alert_-_Get_incident')?['properties']?['description']}\n\nSentinel Incident URL: @{body('Alert_-_Get_incident')?['properties']?['incidentUrl']} ",
+                "runAfter": {
+                    "Alert_-_Get_incident": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Compose"
+            },
+            "Create_PagerDuty_incident": {
+                "inputs": {
+                    "body": {
+                        "incident": {
+                            "body": {
+                                "details": "@outputs('Compose_incident_body')",
+                                "type": "incident_body"
+                            },
+                            "service": {
+                                "id": "@variables('service')",
+                                "type": "service_reference"
+                            },
+                            "title": "@body('Alert_-_Get_incident')?['properties']?['title']",
+                            "type": "incident",
+                            "urgency": "high"
+                        }
+                    },
+                    "headers": {
+                        "Accept": "application/vnd.pagerduty+json;version=2",
+                        "Authorization": "@variables('apiToken')",
+                        "Content-Type": "application/json",
+                        "From": "@variables('caller')"
+                    },
+                    "method": "POST",
+                    "uri": "https://api.pagerduty.com/incidents"
+                },
+                "runAfter": {
+                    "Compose_incident_body": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Http"
+            },
+            "Initialize_apiToken": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "apiToken",
+                            "type": "string",
+                            "value": "Token token=your_apiToken"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Initialize_caller": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "Initialize_caller": {
+                "description": "Caller for PagerDuty incidents",
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "caller",
+                            "type": "string",
+                            "value": "user@company.com"
+                        }
+                    ]
+                },
+                "runAfter": {},
+                "type": "InitializeVariable"
+            },
+            "Initialize_service": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "service",
+                            "type": "string",
+                            "value": "your_service_id"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Initialize_apiToken": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            }
                         
                     
             
